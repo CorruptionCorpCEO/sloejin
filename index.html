@@ -1,0 +1,461 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>sloe jin</title>
+    <link rel="icon" href="favicon.png" type="image/x-icon">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #000000;
+            font-family: 'Inter', sans-serif;
+            color: white;
+            cursor: pointer;
+        }
+
+        /* The container for the main canvas */
+        #canvasContainer {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        /* The main canvas, which fills the container. It no longer has the filters. */
+        #mainCanvas {
+            display: block;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        .main-logo {
+            position: fixed;
+            top: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 200px;
+            height: auto;
+            object-fit: contain;
+        }
+
+        .secondary-logo {
+            position: fixed;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 50px;
+            height: auto;
+            object-fit: contain;
+        }
+    </style>
+</head>
+<body>
+    <img src="logo.png" alt="Main Logo" class="main-logo">
+    <div id="canvasContainer">
+        <canvas id="mainCanvas"></canvas>
+    </div>
+    <img src="smalllogo.png" alt="Secondary Logo" class="secondary-logo">
+    <script>
+        // Get the main canvas and its context
+        const mainCanvas = document.getElementById('mainCanvas');
+        const mainCtx = mainCanvas.getContext('2d');
+        const mainLogo = document.querySelector('.main-logo');
+        const secondaryLogo = document.querySelector('.secondary-logo');
+        
+        let animationFrameId;
+        let blobs = [];
+        let isSubmenuActive = false;
+        let parentBlob = null; // Store the parent blob for reference
+
+        // Blob data structure with image URLs pointing to local files
+        const blobData = [
+            {
+                id: 'socials',
+                text: 'SOCIALS',
+                color: 'green',
+                size: 1.5,
+                isMainBlob: true,
+                hasChildren: true,
+                imageUrl: 'media.png',
+                url: null,
+                children: [
+                    { id: 'instagram', text: 'INSTAGRAM', color: 'green', size: 0.75, isMainBlob: false, hasChildren: false, imageUrl: 'instagram.png', url: 'https://www.instagram.com/sloe.jin/' },
+                    { id: 'youtube', text: 'YOUTUBE', color: 'green', size: 0.75, isMainBlob: false, hasChildren: false, imageUrl: 'youtube.png', url: 'https://www.youtube.com/@sloejin' },
+                    { id: 'spotify', text: 'SPOTIFY', color: 'green', size: 0.75, isMainBlob: false, hasChildren: false, imageUrl: 'spotify.png', url: 'https://open.spotify.com/artist/20OfHiKithXpRvNW3P9XD4?si=2zHIsDbkS5C1EHVMkkGPuQ' },
+                    { id: 'soundcloud', text: 'SOUNDCLOUD', color: 'green', size: 0.75, isMainBlob: false, hasChildren: false, imageUrl: 'soundcloud.png', url: 'https://soundcloud.com/sloejin' }
+                ]
+            },
+            { id: 'alldrive', text: 'ALL DRIVE', color: 'blue', size: 0.75, isMainBlob: true, hasChildren: false, imageUrl: 'all drive.png', url: 'https://youtu.be/0PN55j4U_AY?si=ijkEDbmJAtmwyfgN' },
+            { 
+                id: 'jinrummy', 
+                text: 'JIN RUMMY', 
+                color: 'purple', 
+                size: 0.75, 
+                isMainBlob: true, 
+                hasChildren: true, 
+                imageUrl: 'jin rummy.png', 
+                url: '',
+                children: [
+                    { 
+                        id: 'soon-jinrummy', 
+                        text: 'COMING SOON', 
+                        color: 'purple', 
+                        size: 0.75, 
+                        isMainBlob: false, 
+                        hasChildren: false, 
+                        imageUrl: 'soon.png', 
+                        url: null 
+                    }
+                ]
+            },
+            { 
+                id: 'grit', 
+                text: 'GRIT', 
+                color: 'magenta', 
+                size: 0.75, 
+                isMainBlob: true, 
+                hasChildren: true, 
+                imageUrl: 'grit.png', 
+                url: '',
+                children: [
+                    { 
+                        id: 'soon-grit', 
+                        text: 'COMING SOON', 
+                        color: 'magenta', 
+                        size: 0.75, 
+                        isMainBlob: false, 
+                        hasChildren: false, 
+                        imageUrl: 'soon.png', 
+                        url: null 
+                    }
+                ]
+            },
+            
+        ];
+
+        // An object to hold the loaded image objects
+        const loadedImages = {};
+
+        // Pre-load all images before starting the animation
+        function preloadImages() {
+            return new Promise((resolve, reject) => {
+                const imagesToLoad = [];
+                blobData.forEach(blob => {
+                    if (blob.imageUrl) {
+                        imagesToLoad.push(blob.imageUrl);
+                    }
+                    if (blob.children) {
+                        blob.children.forEach(child => {
+                            if (child.imageUrl) {
+                                imagesToLoad.push(child.imageUrl);
+                            }
+                        });
+                    }
+                });
+
+                let loadedCount = 0;
+                imagesToLoad.forEach(url => {
+                    const img = new Image();
+                    img.onload = () => {
+                        loadedCount++;
+                        loadedImages[url] = img;
+                        if (loadedCount === imagesToLoad.length) {
+                            resolve();
+                        }
+                    };
+                    img.onerror = () => {
+                        console.error(`Failed to load image: ${url}`);
+                        loadedCount++;
+                        if (loadedCount === imagesToLoad.length) {
+                            resolve();
+                        }
+                    };
+                    img.src = url;
+                });
+
+                if (imagesToLoad.length === 0) {
+                    resolve();
+                }
+            });
+        }
+        
+        // Set up the canvas dimensions and initial blobs on window load and resize
+        function setupCanvas() {
+            mainCanvas.width = window.innerWidth;
+            mainCanvas.height = window.innerHeight;
+            if (animationFrameId) {
+                cancelAnimationFrame(animationFrameId);
+            }
+            if (!isSubmenuActive) {
+                createMainMenuBlobs();
+            }
+            animate();
+        }
+
+        // Create the initial set of blobs for the main menu
+        function createMainMenuBlobs() {
+            blobs = [];
+            isSubmenuActive = false;
+            parentBlob = null;
+            const centerX = mainCanvas.width / 2;
+            const centerY = mainCanvas.height / 2;
+            const separation = 150;
+            const rotationOffsetAngle = Math.PI / 4;
+
+            const baseAngles = [ -Math.PI / 2, 0, Math.PI / 2, Math.PI, -Math.PI / 2];
+
+            const positions = baseAngles.map((angle, index) => {
+                const newAngle = index === 4 ? angle : angle + rotationOffsetAngle;
+                const adjustedSeparation = index === 4 ? separation * 1.5 : separation; 
+                return {
+                    x: centerX + adjustedSeparation * Math.cos(newAngle),
+                    y: centerY + adjustedSeparation * Math.sin(newAngle)
+                };
+            });
+
+            blobData.forEach((item, index) => {
+                const radius = (item.size * 50) + 30;
+                blobs.push({
+                    ...item,
+                    x: centerX,
+                    y: centerY,
+                    vx: (Math.random() - 0.5) * 1.5,
+                    vy: (Math.random() - 0.5) * 1.5,
+                    radius: 0,
+                    targetRadius: radius,
+                    targetX: positions[index].x,
+                    targetY: positions[index].y
+                });
+            });
+        }
+
+        // Create submenu blobs and handle the transition
+        function createSubmenu(parentBlobData) {
+            blobs = []; // Clear all current blobs to hide the main menu
+            isSubmenuActive = true;
+            
+            const centerX = mainCanvas.width / 2;
+            const centerY = mainCanvas.height / 2;
+            const numChildren = parentBlobData.children.length;
+            
+            parentBlobData.children.forEach((item, index) => {
+                let targetX, targetY;
+                // Check if there is only one child to center it
+                if (numChildren === 1) {
+                    targetX = centerX;
+                    targetY = centerY;
+                } else {
+                    const radialDistance = 150;
+                    const angle = (index / numChildren) * Math.PI * 2;
+                    targetX = centerX + radialDistance * Math.cos(angle);
+                    targetY = centerY + radialDistance * Math.sin(angle);
+                }
+
+                const radius = (item.size * 50) + 30;
+                blobs.push({
+                    ...item,
+                    x: centerX,
+                    y: centerY,
+                    vx: 0, 
+                    vy: 0,
+                    radius: 0,
+                    targetRadius: radius,
+                    targetX: targetX,
+                    targetY: targetY
+                });
+            });
+        }
+        
+        // The main animation loop
+        function animate() {
+            mainCtx.clearRect(0, 0, mainCanvas.width, mainCanvas.height);
+            
+            updateBlobs();
+            drawBlobs();
+            
+            animationFrameId = requestAnimationFrame(animate);
+        }
+
+        // Update blob positions and apply physics
+        function updateBlobs() {
+            const gravityForce = 0.0015;
+            const nextBlobs = [];
+
+            // Calculate the new gravitational center based on the logos' positions
+            const mainLogoRect = mainLogo.getBoundingClientRect();
+            const secondaryLogoRect = secondaryLogo.getBoundingClientRect();
+            
+            const gravityX = mainCanvas.width / 2;
+            const gravityY = (mainLogoRect.bottom + secondaryLogoRect.top) / 2;
+
+            for (let i = 0; i < blobs.length; i++) {
+                const blob = blobs[i];
+                const isWhiteBlob = blob.id === 'whiteBlob';
+
+                // Animate to target radius and position
+                const dxToTarget = blob.targetX - blob.x;
+                const dyToTarget = blob.targetY - blob.y;
+                blob.x += dxToTarget * 0.1;
+                blob.y += dyToTarget * 0.1;
+                blob.radius += (blob.targetRadius - blob.radius) * 0.1;
+
+                // Apply gravity towards the new gravitational center
+                if (!isWhiteBlob || !isDraggingLogo) {
+                    const dxToCenter = gravityX - blob.x;
+                    const dyToCenter = gravityY - blob.y;
+                    blob.vx += dxToCenter * gravityForce;
+                    blob.vy += dyToCenter * gravityForce;
+                }
+
+                // Collision logic to prevent overlap and bouncing
+                for (let j = i + 1; j < blobs.length; j++) {
+                    const otherBlob = blobs[j];
+                    const dx = otherBlob.x - blob.x;
+                    const dy = otherBlob.y - blob.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    const minDistance = blob.radius + otherBlob.radius;
+
+                    if (distance < minDistance) {
+                        const overlap = minDistance - distance;
+                        const angle = Math.atan2(dy, dx);
+                        
+                        const separationX = Math.cos(angle) * (overlap / 2);
+                        const separationY = Math.sin(angle) * (overlap / 2);
+                        
+                        blob.x -= separationX;
+                        blob.y -= separationY;
+                        otherBlob.x += separationX;
+                        otherBlob.y += separationY;
+                        
+                        const normalX = dx / distance;
+                        const normalY = dy / distance;
+                        
+                        const relativeVx = otherBlob.vx - blob.vx;
+                        const relativeVy = otherBlob.vy - blob.vy;
+                        
+                        const dotProduct = relativeVx * normalX + relativeVy * normalY;
+                        
+                        if (dotProduct > 0) {
+                            const impulseX = dotProduct * normalX;
+                            const impulseY = dotProduct * normalY;
+
+                            blob.vx += impulseX;
+                            blob.vy += impulseY;
+                            otherBlob.vx -= impulseX;
+                            otherBlob.vy -= impulseY;
+                        }
+                    }
+                }
+
+                // Apply friction
+                if (!isWhiteBlob || !isDraggingLogo) {
+                    blob.vx *= 0.99;
+                    blob.vy *= 0.99;
+                }
+
+                // Update position
+                blob.x += blob.vx;
+                blob.y += blob.vy;
+
+                // Keep blobs within the canvas boundaries
+                if (!isWhiteBlob || !isDraggingLogo) {
+                    if (blob.x - blob.radius < 0 || blob.x + blob.radius > mainCanvas.width) {
+                        blob.vx *= -1;
+                        blob.x = Math.max(blob.radius, Math.min(mainCanvas.width - blob.radius, blob.x));
+                    }
+                    if (blob.y - blob.radius < 0 || blob.y + blob.radius > mainCanvas.height) {
+                        blob.vy *= -1;
+                        blob.y = Math.max(blob.radius, Math.min(mainCanvas.height - blob.radius, blob.y));
+                    }
+                }
+
+                if (blob.radius > 1) {
+                    nextBlobs.push(blob);
+                }
+            }
+            blobs = nextBlobs;
+        }
+
+        // Draw each blob on the main canvas
+        function drawBlobs() {
+            for (const blob of blobs) {
+                if (blob.imageUrl) {
+                    const img = loadedImages[blob.imageUrl];
+                    if (img) {
+                        mainCtx.save();
+                        mainCtx.beginPath();
+                        mainCtx.arc(blob.x, blob.y, blob.radius, 0, Math.PI * 2);
+                        mainCtx.clip();
+                        mainCtx.drawImage(img, blob.x - blob.radius, blob.y - blob.radius, blob.radius * 2, blob.radius * 2);
+                        mainCtx.restore();
+                    }
+                } else {
+                    mainCtx.beginPath();
+                    mainCtx.arc(blob.x, blob.y, blob.radius, 0, Math.PI * 2);
+                    mainCtx.fillStyle = blob.color;
+                    mainCtx.fill();
+                }
+            }
+        }
+
+        // Handle clicks and drag-and-drop
+        let isDraggingLogo = false;
+        let logoOffsetX = 0;
+        let logoOffsetY = 0;
+
+        function handleMouseDown(event) {
+            const mouseX = event.clientX;
+            const mouseY = event.clientY;
+            
+            let clickedBlob = null;
+            for (const blob of blobs) {
+                const distance = Math.sqrt((mouseX - blob.x) ** 2 + (mouseY - blob.y) ** 2);
+                if (distance < blob.radius) {
+                    clickedBlob = blob;
+                    break;
+                }
+            }
+            
+            if (clickedBlob) {
+                if (clickedBlob.hasChildren && clickedBlob.isMainBlob) {
+                    parentBlob = clickedBlob; // Store the clicked blob as the parent
+                    const parentBlobData = blobData.find(b => b.id === parentBlob.id);
+                    if (parentBlobData) {
+                        createSubmenu(parentBlobData);
+                    }
+                } else if (clickedBlob.url) {
+                    window.open(clickedBlob.url, '_blank');
+                }
+            } else {
+                if (isSubmenuActive) {
+                    // Clicking the background when a submenu is active closes it
+                    createMainMenuBlobs();
+                }
+            }
+        }
+
+        function handleMouseMove(event) {
+            // Dragging logic for a 'whiteBlob' has been removed.
+        }
+
+        function handleMouseUp() {
+            // Dragging logic for a 'whiteBlob' has been removed.
+        }
+        
+        window.addEventListener('resize', setupCanvas);
+        mainCanvas.addEventListener('mousedown', handleMouseDown);
+        mainCanvas.addEventListener('mousemove', handleMouseMove);
+        mainCanvas.addEventListener('mouseup', handleMouseUp);
+        mainCanvas.addEventListener('mouseout', handleMouseUp);
+        
+        preloadImages().then(() => {
+            window.addEventListener('load', setupCanvas);
+        });
+    </script>
+</body>
+</html>
